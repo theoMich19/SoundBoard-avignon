@@ -1066,12 +1066,18 @@
           "sounds/_Joueur start - Space jam- Lets get ready to rumble.mp3";
 
         const PENALTY_AUDIO = {
-          "Le Bon la Brute et le Truand":
-            "sounds/PENALTY  - Le bon la brute et le truand musique.mp3",
-          "Eye of the Tiger":
-            "sounds/PENALTY  - Survivor Eye Of The Tiger Official HD Video.mp3",
-          "Les Dents de la Mer":
-            "sounds/PENALTY  - 14s [Film] Musique - Les Dents De La Mer.mp3",
+          "Le Bon la Brute et le Truand": {
+            src: "sounds/PENALTY  - Le bon la brute et le truand musique.mp3",
+            start: 5,
+          },
+          "Eye of the Tiger": {
+            src: "sounds/PENALTY  - Survivor Eye Of The Tiger Official HD Video.mp3",
+            start: 0,
+          },
+          "Les Dents de la Mer": {
+            src: "sounds/PENALTY  - 14s [Film] Musique - Les Dents De La Mer.mp3",
+            start: 14,
+          },
         };
 
         // ── STATE ──
@@ -1158,6 +1164,7 @@
             setLiveDot(false);
             updateMasterUI();
           } else {
+            stopAllAudio();
             sjAudio.volume = vol();
             sjAudio.currentTime = 0;
             sjAudio.play();
@@ -1211,15 +1218,50 @@
         }
 
         // ── TEMPS MORT ──
+        function stopAllAudio() {
+          if (localAudio) {
+            localAudio.pause();
+            localAudio.currentTime = 0;
+          }
+          localPlaying = false;
+          clearInterval(localTimer);
+          if (sjAudio) {
+            sjAudio.pause();
+            sjAudio.currentTime = 0;
+          }
+          sjPlaying = false;
+          document.getElementById("btnPlayers").classList.remove("playing");
+          document
+            .querySelectorAll(".tm-btn.playing-tm")
+            .forEach((b) => b.classList.remove("playing-tm"));
+          Object.values(tmAudios).forEach((a) => {
+            if (a) {
+              a.pause();
+              a.currentTime = 0;
+            }
+          });
+          document
+            .querySelectorAll(".penalty-btn.playing-pen")
+            .forEach((b) => b.classList.remove("playing-pen"));
+          Object.values(penaltyAudios).forEach((a) => {
+            if (a) {
+              a.pause();
+              a.currentTime = 0;
+            }
+          });
+          setNP("—");
+          setLiveDot(false);
+          updateMasterUI();
+          document.getElementById("masterProgFill").style.width = "0%";
+          document.getElementById("masterCur").textContent = "0:00";
+          document.getElementById("masterDur").textContent = "0:00";
+        }
         function playTM(key, btn) {
           if (btn.classList.contains("playing-tm")) {
             stopTMBtn(key, btn);
             return;
           }
-          if (tmAudios[key]) {
-            tmAudios[key].pause();
-            tmAudios[key].currentTime = 0;
-          }
+          stopAllAudio();
           const track = TM_AUDIO[key];
           const a = new Audio(track.src);
           a.volume = vol();
@@ -1359,11 +1401,7 @@
         }
         function playLocal(i) {
           if (i < 0 || i >= localTracks.length) return;
-          if (localAudio) {
-            localAudio.pause();
-            localAudio.src = "";
-          }
-          clearInterval(localTimer);
+          stopAllAudio();
           localIdx = i;
           localAudio = new Audio(localTracks[i].url);
           localAudio.volume = vol();
@@ -1455,6 +1493,7 @@
             stopPenaltyBtn(key, btn);
             return;
           }
+          stopAllAudio();
           // stop other penalty
           document.querySelectorAll(".penalty-btn.playing-pen").forEach((b) => {
             const k = b.querySelector(".penalty-name").textContent.trim();
@@ -1464,9 +1503,21 @@
             penaltyAudios[key].pause();
             penaltyAudios[key].currentTime = 0;
           }
-          const a = new Audio(PENALTY_AUDIO[key]);
+          const ptrack = PENALTY_AUDIO[key];
+          const a = new Audio(ptrack.src);
           a.volume = vol();
-          a.play();
+          if (ptrack.start > 0) {
+            a.addEventListener(
+              "loadedmetadata",
+              () => {
+                a.currentTime = ptrack.start;
+                a.play();
+              },
+              { once: true }
+            );
+          } else {
+            a.play();
+          }
           penaltyAudios[key] = a;
           btn.classList.add("playing-pen");
           if (!localPlaying && !sjPlaying) {
