@@ -434,7 +434,7 @@ body {
   </div>
 
   <div class="master-progress">
-    <div class="master-prog-bar" id="masterProgBar" onclick="seekLocal(event)">
+    <div class="master-prog-bar" id="masterProgBar">
       <div class="master-prog-fill" id="masterProgFill"></div>
     </div>
     <div class="master-prog-times">
@@ -445,7 +445,7 @@ body {
 
   <div class="master-ctrl">
     <button class="mc pp" id="masterPP" onclick="toggleMasterPlay()">▶ Play</button>
-    <button class="mc stop" onclick="stopEverything2()" title="Arrêter">⏹</button>
+    <button class="mc stop" onclick="stopCurrent()" title="Arrêter">⏹</button>
     <button class="mc stop-all" onclick="stopEverything()">⏹ Tout couper</button>
   </div>
 
@@ -465,7 +465,7 @@ body {
       <button class="btn-players" id="btnPlayers" onclick="toggleSpaceJam()">
         🏟 ENTRÉE DES JOUEURS
       </button>
-      <button class="players-stop" onclick="stopSpaceJam()" title="Stop">⏹</button>
+      <button class="players-stop" onclick="stopEverything()" title="Stop">⏹</button>
       <div class="players-meta">
         <h3>Space Jam – Let's Get Ready To Rumble</h3>
         <p>Lance l'entrée des joueurs sur le terrain</p>
@@ -479,7 +479,6 @@ body {
       <div class="card-label" style="color:var(--blue)">⏱ Temps mort</div>
     </div>
     <div class="tm-grid">
-      
       <button class="tm-btn" onclick="playTM('Avicii – Levels', this)">
         <span class="tm-emoji">🎧</span>
         <span class="tm-name">Levels</span>
@@ -512,10 +511,9 @@ body {
       </button>
     </div>
     <div class="tm-stop-row">
-      <button class="btn-stop-tm" onclick="stopAllTM()">⏹ Stop tous les temps mort</button>
+      <button class="btn-stop-tm" onclick="stopEverything()">⏹ Stop tous les temps mort</button>
     </div>
   </div>
-
 
   <!-- PENALTY -->
   <div class="card card-penalty">
@@ -540,16 +538,12 @@ body {
       </button>
     </div>
     <div class="penalty-stop-row">
-      <button class="btn-stop-pen" onclick="stopAllPenalty()">⏹ Stop pénalty</button>
+      <button class="btn-stop-pen" onclick="stopEverything()">⏹ Stop pénalty</button>
     </div>
   </div>
 
-
-
   <!-- SPOTIFY STACK (right column, rows 2-4) -->
   <div class="spotify-stack">
-
-    <!-- Échauffement -->
     <div class="card">
       <div class="card-hd">
         <div class="card-label" style="color:var(--spotify)">🎵 Échauffement</div>
@@ -558,8 +552,6 @@ body {
         <div class="sp-embed" id="spEmbed_warm"></div>
       </div>
     </div>
-
-    <!-- Mi-temps -->
     <div class="card">
       <div class="card-hd">
         <div class="card-label" style="color:var(--spotify)">🎵 Mi-temps</div>
@@ -568,8 +560,6 @@ body {
         <div class="sp-embed" id="spEmbed_half"></div>
       </div>
     </div>
-
-    <!-- Après match -->
     <div class="card">
       <div class="card-hd">
         <div class="card-label" style="color:var(--spotify)">🏆 Après match</div>
@@ -578,12 +568,15 @@ body {
         <div class="sp-embed" id="spEmbed_after"></div>
       </div>
     </div>
-
   </div>
+
+</div><!-- /bento -->
 <div class="toast" id="toast"></div>
 
 <script>
-// ── AUDIO DATA ──
+// ══════════════════════════════════════════════
+//  AUDIO DATA
+// ══════════════════════════════════════════════
 const TM_AUDIO = {
   "Avicii – Levels":                { src: "sounds/TEMPS MORT - 0s Avicii - Levels.mp3",                                    start: 0  },
   "GALA – Freed from Desire":       { src: "sounds/TEMPS MORT - 0s GALA - Freed from desire [Official Video].mp3",           start: 0  },
@@ -592,143 +585,211 @@ const TM_AUDIO = {
   "Darude – Sandstorm":             { src: "sounds/TEMPS MORT - 20s Darude - Sandstorm.mp3",                                 start: 20 },
   "Gloria Gaynor – I Will Survive": { src: "sounds/TEMPS MORT - 9s Gloria Gaynor - I Will Survive.mp3",                      start: 9  },
 };
-const SPACE_JAM_SRC = "sounds/_Joueur start - Space jam- Lets get ready to rumble.mp3";
 
 const PENALTY_AUDIO = {
   "Le Bon la Brute et le Truand": { src: "sounds/PENALTY  - Le bon la brute et le truand musique.mp3", start: 5  },
-  "Eye of the Tiger":             { src: "sounds/PENALTY  - Survivor Eye Of The Tiger Official HD Video.mp3", start: 0  },
-  "Les Dents de la Mer":          { src: "sounds/PENALTY  - 14s [Film] Musique - Les Dents De La Mer.mp3",   start: 14 }
+  "Eye of the Tiger":             { src: "sounds/PENALTY  - Survivor Eye Of The Tiger Official HD Video.mp3", start: 0 },
+  "Les Dents de la Mer":          { src: "sounds/PENALTY  - 14s [Film] Musique - Les Dents De La Mer.mp3",   start: 14 },
 };
 
-// ── STATE ──
-// activeSource tracks what's "main": 'local' | 'spacejam' | 'tm'
-let sjAudio = null, sjPlaying = false;
-const tmAudios = {};
-// currently tracked "main" audio for master bar
-let mainAudio = null; // reference to the audio we show progress for
+const SPACE_JAM_SRC = "sounds/_Joueur start - Space jam- Lets get ready to rumble.mp3";
 
-// ── MASTER BAR LOGIC ──
-// The master bar ▶/⏸ controls the "main" active audio
-// Priority: localAudio > spacejam > nothing
-function getMasterAudio() {
-if (sjAudio) return sjAudio;
-  return null;
-}
+// ══════════════════════════════════════════════
+//  SINGLE ACTIVE AUDIO STATE
+//  On ne garde qu'UN seul objet Audio actif à la fois.
+// ══════════════════════════════════════════════
+let activeAudio  = null;   // l'Audio en cours
+let activeBtn    = null;   // le bouton allumé (pour l'éteindre)
+let activeName   = '—';    // label affiché dans la master bar
+let progressTimer = null;  // setInterval pour la barre de progression
 
-function toggleMasterPlay() {
+// ── Nettoyer complètement l'audio actif ──────
+function clearActive() {
+  clearInterval(progressTimer);
+  progressTimer = null;
 
-  if (sjAudio && sjPlaying) { sjAudio.pause(); sjPlaying=false; setLiveDot(false); updateMasterUI(); return; }
-  if (sjAudio && !sjPlaying && sjAudio.currentTime > 0) { sjAudio.play(); sjPlaying=true; setLiveDot(true); updateMasterUI();
-    clearInterval(localTimer); localTimer=setInterval(()=>updateProgressFor(sjAudio),500); return; }
-  // nothing loaded yet - do nothing
-}
-
-function masterPrev() {
-
-  // space jam has no prev/next — restart
-  if (sjAudio) { sjAudio.currentTime = 0; }
-}
-
-function masterNext() {
-
-  if (sjAudio) { sjAudio.currentTime = 0; }
-}
-
-function masterStop() {
-  if (!sjPlaying) return; // don't stop spacejam if local was active
-}
-
-// ── SPACE JAM ──
-function toggleSpaceJam() {
-  if (!sjAudio) sjAudio = new Audio(SPACE_JAM_SRC);
-  const btn = document.getElementById('btnPlayers');
-  if (sjPlaying) {
-    sjAudio.pause(); sjPlaying = false;
-    btn.classList.remove('playing'); setNP('—'); setLiveDot(false);
-    updateMasterUI();
-  } else {
-    stopAllAudio(); sjAudio.volume = vol(); sjAudio.currentTime = 0; sjAudio.play();
-    sjPlaying = true;
-    btn.classList.add('playing'); setNP('🏟 Entrée des joueurs'); setLiveDot(true);
-    updateMasterUI();
-    sjAudio.onended = () => {
-      sjPlaying = false; btn.classList.remove('playing');
-      setNP('—'); setLiveDot(false); updateMasterUI();
-      clearInterval(localTimer);
-      document.getElementById('masterProgFill').style.width='0%';
-      document.getElementById('masterCur').textContent='0:00';
-      document.getElementById('masterDur').textContent='0:00';
-    };
-    // update progress for spacejam
-    clearInterval(localTimer);
-    localTimer = setInterval(() => updateProgressFor(sjAudio), 500);
-    if (sjAudio.duration) document.getElementById('masterDur').textContent = fmt(sjAudio.duration);
-    sjAudio.addEventListener('loadedmetadata', () => {
-      document.getElementById('masterDur').textContent = fmt(sjAudio.duration);
-    }, { once: true });
+  if (activeAudio) {
+    activeAudio.pause();
+    activeAudio.currentTime = 0;
+    activeAudio.onended = null;
+    activeAudio = null;
   }
-}
-function stopSpaceJam() {
-  if (sjAudio) { sjAudio.pause(); sjAudio.currentTime = 0; }
-  sjPlaying = false;
-  document.getElementById('btnPlayers').classList.remove('playing');
-  setNP('—'); setLiveDot(false); updateMasterUI();
-  document.getElementById('masterProgFill').style.width='0%';
-  document.getElementById('masterCur').textContent='0:00';
-  document.getElementById('masterDur').textContent='0:00';
+
+  if (activeBtn) {
+    activeBtn.classList.remove('playing', 'playing-tm', 'playing-pen');
+    activeBtn = null;
+  }
+
+  activeName = '—';
+  setNP('—');
+  setLiveDot(false);
+  updateMasterUI(false);
+  resetProgressBar();
 }
 
-// ── TEMPS MORT ──
-function stopAllAudio() {
+// ── Lancer un Audio avec gestion commune ─────
+function startAudio(audioObj, displayName, btn, startSec) {
+  clearActive(); // stoppe tout ce qui tournait avant
 
-  if (sjAudio) { sjAudio.pause(); sjAudio.currentTime = 0; }
-  sjPlaying = false;
-  document.getElementById('btnPlayers').classList.remove('playing');
-  document.querySelectorAll('.tm-btn.playing-tm').forEach(b => b.classList.remove('playing-tm'));
-  Object.values(tmAudios).forEach(a => { if (a) { a.pause(); a.currentTime = 0; } });
-  document.querySelectorAll('.penalty-btn.playing-pen').forEach(b => b.classList.remove('playing-pen'));
-  Object.values(penaltyAudios).forEach(a => { if (a) { a.pause(); a.currentTime = 0; } });
-  setNP('—'); setLiveDot(false); updateMasterUI();
+  activeAudio = audioObj;
+  activeBtn   = btn;
+  activeName  = displayName;
+
+  audioObj.volume = vol();
+
+  const doPlay = () => {
+    if (startSec > 0) audioObj.currentTime = startSec;
+    audioObj.play();
+    setNP(displayName);
+    setLiveDot(true);
+    updateMasterUI(true);
+    startProgressTracking(audioObj);
+  };
+
+  if (audioObj.readyState >= 1) { // HAVE_METADATA
+    doPlay();
+  } else {
+    audioObj.addEventListener('loadedmetadata', doPlay, { once: true });
+    audioObj.load();
+  }
+
+  audioObj.onended = () => { clearActive(); };
+}
+
+// ── Suivi de progression ──────────────────────
+function startProgressTracking(a) {
+  clearInterval(progressTimer);
+  progressTimer = setInterval(() => {
+    if (!a || !a.duration) return;
+    const pct = a.currentTime / a.duration;
+    document.getElementById('masterProgFill').style.width = (pct * 100) + '%';
+    document.getElementById('masterCur').textContent = fmt(a.currentTime);
+    document.getElementById('masterDur').textContent = fmt(a.duration);
+  }, 300);
+}
+
+function resetProgressBar() {
   document.getElementById('masterProgFill').style.width = '0%';
   document.getElementById('masterCur').textContent = '0:00';
   document.getElementById('masterDur').textContent = '0:00';
 }
-function playTM(key, btn) {
-  if (btn.classList.contains('playing-tm')) { stopTMBtn(key, btn); return; }
-  stopAllAudio();
-  const track = TM_AUDIO[key];
-  const a = new Audio(track.src);
-  a.volume = vol();
-  if (track.start > 0) {
-    a.addEventListener('loadedmetadata', () => { a.currentTime = track.start; a.play(); }, { once: true });
-  } else { a.play(); }
-  tmAudios[key] = a;
-  btn.classList.add('playing-tm');
-  // show in master bar but don't hijack progress if local/sj is playing
-  if (!sjPlaying) {
-    const shortName = key.split(' – ').pop();
-    setNP('⏱ ' + shortName); setLiveDot(true);
-    clearInterval(localTimer);
-    localTimer = setInterval(() => updateProgressFor(a), 500);
-    a.addEventListener('loadedmetadata', () => {
-      document.getElementById('masterDur').textContent = fmt(a.duration);
-    }, { once: true });
+
+// ══════════════════════════════════════════════
+//  SPACE JAM – Entrée des joueurs
+// ══════════════════════════════════════════════
+function toggleSpaceJam() {
+  const btn = document.getElementById('btnPlayers');
+
+  // Si déjà en lecture → pause/reprise
+  if (activeAudio && activeBtn === btn) {
+    if (!activeAudio.paused) {
+      activeAudio.pause();
+      setLiveDot(false);
+      updateMasterUI(false);
+    } else {
+      activeAudio.play();
+      setLiveDot(true);
+      updateMasterUI(true);
+    }
+    return;
   }
-  a.onended = () => {
-    btn.classList.remove('playing-tm');
-    if (!sjPlaying) { setNP('—'); setLiveDot(false); clearInterval(localTimer); }
-  };
-}
-function stopTMBtn(key, btn) {
-  if (tmAudios[key]) { tmAudios[key].pause(); tmAudios[key].currentTime = 0; }
-  btn.classList.remove('playing-tm');
-}
-function stopAllTM() {
-  document.querySelectorAll('.tm-btn.playing-tm').forEach(b => b.classList.remove('playing-tm'));
-  Object.values(tmAudios).forEach(a => { if (a) { a.pause(); a.currentTime = 0; } });
+
+  const a = new Audio(SPACE_JAM_SRC);
+  btn.classList.add('playing');
+  startAudio(a, '🏟 Entrée des joueurs', btn, 0);
 }
 
-// ── SPOTIFY ──
+// ══════════════════════════════════════════════
+//  TEMPS MORT
+// ══════════════════════════════════════════════
+function playTM(key, btn) {
+  // Clic sur le bouton actif → toggle pause/reprise
+  if (activeBtn === btn && activeAudio) {
+    if (!activeAudio.paused) {
+      activeAudio.pause();
+      setLiveDot(false);
+      updateMasterUI(false);
+    } else {
+      activeAudio.play();
+      setLiveDot(true);
+      updateMasterUI(true);
+    }
+    return;
+  }
+
+  const track = TM_AUDIO[key];
+  const a = new Audio(track.src);
+  btn.classList.add('playing-tm');
+  const label = '⏱ ' + key.split(' – ').pop();
+  startAudio(a, label, btn, track.start);
+}
+
+// ══════════════════════════════════════════════
+//  PENALTY
+// ══════════════════════════════════════════════
+function playPenalty(key, btn) {
+  if (activeBtn === btn && activeAudio) {
+    if (!activeAudio.paused) {
+      activeAudio.pause();
+      setLiveDot(false);
+      updateMasterUI(false);
+    } else {
+      activeAudio.play();
+      setLiveDot(true);
+      updateMasterUI(true);
+    }
+    return;
+  }
+
+  const track = PENALTY_AUDIO[key];
+  const a = new Audio(track.src);
+  btn.classList.add('playing-pen');
+  startAudio(a, '🎯 ' + key, btn, track.start);
+}
+
+// ══════════════════════════════════════════════
+//  MASTER BAR CONTROLS
+// ══════════════════════════════════════════════
+function toggleMasterPlay() {
+  if (!activeAudio) return;
+  if (activeAudio.paused) {
+    activeAudio.play();
+    setLiveDot(true);
+    updateMasterUI(true);
+  } else {
+    activeAudio.pause();
+    setLiveDot(false);
+    updateMasterUI(false);
+  }
+}
+
+// Arrête uniquement l'audio actif (bouton ⏹ simple)
+function stopCurrent() {
+  if (activeAudio) clearActive();
+}
+
+// Arrête absolument tout
+function stopEverything() {
+  clearActive();
+  // Sécurité : retire toutes les classes playing si jamais un état parasite subsistait
+  document.querySelectorAll('.playing,.playing-tm,.playing-pen').forEach(el => {
+    el.classList.remove('playing', 'playing-tm', 'playing-pen');
+  });
+  toast('⏹ Tout arrêté');
+}
+
+// ══════════════════════════════════════════════
+//  VOLUME
+// ══════════════════════════════════════════════
+function vol() { return parseFloat(document.getElementById('volSlider').value); }
+function setVol(v) {
+  if (activeAudio) activeAudio.volume = parseFloat(v);
+  document.getElementById('volPct').textContent = Math.round(v * 100) + '%';
+}
+
+// ══════════════════════════════════════════════
+//  SPOTIFY
+// ══════════════════════════════════════════════
 const SPOTIFY_URLS = {
   warm:  "https://open.spotify.com/playlist/5kgtmduXRvIeKpYQDhAThs",
   half:  "https://open.spotify.com/playlist/0eMH71h934yG2dOIkgDL0D",
@@ -738,122 +799,46 @@ function loadSpotify(id) {
   const url = SPOTIFY_URLS[id];
   if (!url) return;
   const match = url.match(/spotify\.com\/(track|playlist|album|artist)\/([a-zA-Z0-9]+)/);
-  const embedUrl = match ? `https://open.spotify.com/embed/${match[1]}/${match[2]}?utm_source=generator&theme=0` : url;
+  const embedUrl = match
+    ? `https://open.spotify.com/embed/${match[1]}/${match[2]}?utm_source=generator&theme=0`
+    : url;
   document.getElementById('spEmbed_' + id).innerHTML =
     `<iframe src="${embedUrl}" width="100%" height="152" frameborder="0"
       allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
       loading="lazy" style="border-radius:8px"></iframe>`;
 }
 
-// ── PROGRESS ──
-function updateProgressFor(a) {
-  if (!a || !a.duration) return;
-  const p = a.currentTime / a.duration;
-  document.getElementById('masterProgFill').style.width=(p*100)+'%';
-  document.getElementById('masterCur').textContent=fmt(a.currentTime);
-  if (a.duration) document.getElementById('masterDur').textContent=fmt(a.duration);
-}
-
-
-// ── PENALTY ──
-const penaltyAudios = {};
-function playPenalty(key, btn) {
-  if (btn.classList.contains('playing-pen')) { stopPenaltyBtn(key, btn); return; }
-  stopAllAudio();
-  // stop other penalty
-  document.querySelectorAll('.penalty-btn.playing-pen').forEach(b => {
-    const k = b.querySelector('.penalty-name').textContent.trim();
-    stopPenaltyBtn(k, b);
-  });
-  if (penaltyAudios[key]) { penaltyAudios[key].pause(); penaltyAudios[key].currentTime = 0; }
-  const ptrack = PENALTY_AUDIO[key];
-  const a = new Audio(ptrack.src);
-  a.volume = vol();
-  if (ptrack.start > 0) {
-    a.addEventListener('loadedmetadata', () => { a.currentTime = ptrack.start; a.play(); }, { once: true });
-  } else { a.play(); }
-  penaltyAudios[key] = a;
-  btn.classList.add('playing-pen');
-  if (!sjPlaying) {
-    setNP('🎯 ' + key); setLiveDot(true);
-    clearInterval(localTimer);
-    localTimer = setInterval(() => updateProgressFor(a), 500);
-    a.addEventListener('loadedmetadata', () => {
-      document.getElementById('masterDur').textContent = fmt(a.duration);
-    }, { once: true });
-  }
-  a.onended = () => {
-    btn.classList.remove('playing-pen');
-    if (!sjPlaying) { setNP('—'); setLiveDot(false); clearInterval(localTimer); }
-  };
-}
-function stopPenaltyBtn(key, btn) {
-  if (penaltyAudios[key]) { penaltyAudios[key].pause(); penaltyAudios[key].currentTime = 0; }
-  btn.classList.remove('playing-pen');
-}
-function stopAllPenalty() {
-  document.querySelectorAll('.penalty-btn.playing-pen').forEach(b => b.classList.remove('playing-pen'));
-  Object.values(penaltyAudios).forEach(a => { if (a) { a.pause(); a.currentTime = 0; } });
-}
-
-// ── STOP CURRENT ──
-function stopEverything2() {
-
-  if (sjPlaying) { stopSpaceJam(); return; }
-  // stop any playing TM or penalty
-  stopAllTM(); stopAllPenalty();
-  setNP('—'); setLiveDot(false);
-  document.getElementById('masterProgFill').style.width='0%';
-  document.getElementById('masterCur').textContent='0:00';
-  document.getElementById('masterDur').textContent='0:00';
-}
-
-// ── STOP ALL ──
-function stopEverything() {
-  stopSpaceJam(); stopAllTM(); stopAllPenalty();
-  setNP('—'); setLiveDot(false);
-  document.getElementById('masterProgFill').style.width='0%';
-  document.getElementById('masterCur').textContent='0:00';
-  document.getElementById('masterDur').textContent='0:00';
-  toast('⏹ Tout arrêté');
-}
-
-// ── VOLUME ──
-function vol() { return parseFloat(document.getElementById('volSlider').value); }
-function setVol(v) {
-  if (sjAudio) sjAudio.volume=parseFloat(v);
-  Object.values(tmAudios).forEach(a => { if(a) a.volume=parseFloat(v); });
-  Object.values(penaltyAudios).forEach(a => { if(a) a.volume=parseFloat(v); });
-  document.getElementById('volPct').textContent=Math.round(v*100)+'%';
-}
-
-// ── UTILS ──
+// ══════════════════════════════════════════════
+//  UI HELPERS
+// ══════════════════════════════════════════════
 function fmt(s) {
-  if (!s||isNaN(s)) return '0:00';
-  return Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0');
+  if (!s || isNaN(s)) return '0:00';
+  return Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
 }
-function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function setNP(txt) { document.getElementById('npName').textContent=txt; }
+function setNP(txt) { document.getElementById('npName').textContent = txt; }
 function setLiveDot(on) {
   const d = document.getElementById('liveDot');
   d.style.background = on ? 'var(--wolf-accent)' : 'var(--muted)';
-  d.style.animation = on ? 'blink 1.4s infinite' : 'none';
+  d.style.animation  = on ? 'blink 1.4s infinite' : 'none';
 }
-function updateMasterUI() {
-  const playing = sjPlaying;
+function updateMasterUI(playing) {
   document.getElementById('masterPP').textContent = playing ? '⏸ Pause' : '▶ Play';
 }
 function toast(msg) {
-  const el=document.getElementById('toast'); el.textContent=msg;
-  el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),2600);
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2600);
 }
 
-// ── UPDATE MASTER BUTTON ACTIONS ──
-document.getElementById('masterPP').onclick = toggleMasterPlay;
-
-// ── INIT ──
-window.addEventListener('load', () => { loadSpotify('warm'); loadSpotify('half'); loadSpotify('after'); });
-
+// ══════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════
+window.addEventListener('load', () => {
+  loadSpotify('warm');
+  loadSpotify('half');
+  loadSpotify('after');
+});
 </script>
 </div></body>
 </html>
